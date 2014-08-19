@@ -13,15 +13,15 @@ done
 ################################################################################
 
 # Variable to configure
-USER="aadlani"
-EMAIL="anouar@adlani.com"
-BACKUP_HOME="/Users/$USER/backups"
-BACKUP_SOURCE_DIR="/Users/$USER/Documents"
+USER="user"
+EMAIL="user@gmail.com"
+BACKUP_HOME="/home/backups"
+BACKUP_SOURCE_DIR="/home/$USER"
 
 # Dates
 NOW=$(date +%Y%m%d%H%M)               #YYYYMMDDHHMM
-YESTERDAY=$(date -v -1d +%Y%m%d)      #YYYYMMDD
-PREVIOUSMONTH=$(date -v -1m +%Y%m)    #YYYYMM
+YESTERDAY=$(date -d yesterday +%Y%m%d)      #YYYYMMDD
+PREVIOUSMONTH=$(date -d -last-month +%Y%m)    #YYYYMM
 TODAY=${NOW:0:8}                      #YYYYMMDD
 THISMONTH=${TODAY:0:6}                #YYYYMM
 THISYEAR=${TODAY:0:4}                 #YYYY
@@ -38,7 +38,7 @@ MONTHLY_ARCHIVES_DIR="$ARCHIVES_DIR/monthly"
 start_time=`date +%s`
 
 # Init the folder structure
-mkdir -p $SNAPSHOT_DIR  $DAILY_ARCHIVES_DIR $WEEKLY_ARCHIVES_DIR $MONTHLY_ARCHIVES_DIR &> /dev/null
+mkdir -p $SNAPSHOT_DIR  $DAILY_ARCHIVES_DIR $WEEKLY_ARCHIVES_DIR $MONTHLY_ARCHIVES_DIR $CURRENT_LINK &> /dev/null
 touch $LOGFILE
 printf "[%12d] Backup started\n" $NOW >> $LOGFILE
 
@@ -84,7 +84,7 @@ fi
 # Step #4: rotate the backups 
 ################################################################################
 
-find -E $DAILY_ARCHIVES_DIR -type f -mindepth 1 -maxdepth 1 -regex '.*/[0-9]{8}\.tar\.gz\.gpg$' -exec basename {} \; | \
+find $DAILY_ARCHIVES_DIR -regextype posix-extended -type f -mindepth 1 -maxdepth 1 -regex '.*/[0-9]{8}\.tar\.gz\.gpg$' -exec basename {} \; | \
 while read encryptedArchive
 do
   archiveMonth=${encryptedArchive:0:6}
@@ -105,7 +105,7 @@ do
 done 
 
 # Step #4.3: Keep monthly backups for older backups
-find -E $WEEKLY_ARCHIVES_DIR -mindepth 1 -maxdepth 1 -type f -regex '.*/[0-9]{6}\.WK_[1-4]\.tar\.gz\.gpg$' -exec basename {} \; | \
+find $WEEKLY_ARCHIVES_DIR -regextype posix-extended -mindepth 1 -maxdepth 1 -type f -regex '.*/[0-9]{6}\.WK_[1-4]\.tar\.gz\.gpg$' -exec basename {} \; | \
 while read encryptedArchive
 do
   archiveMonth=${encryptedArchive:0:6}
