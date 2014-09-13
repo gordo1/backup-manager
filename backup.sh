@@ -13,9 +13,9 @@ done
 ################################################################################
 
 # Variable to configure
-USER="user"
-EMAIL="user@gmail.com"
-BACKUP_HOME="/home/backups"
+USER="User_here"
+EMAIL="something@something.com"
+BACKUP_HOME="backup_dest"
 BACKUP_SOURCE_DIR="/home/$USER"
 
 # Dates
@@ -28,7 +28,7 @@ THISYEAR=${TODAY:0:4}                 #YYYY
 
 # Backup Configuration
 LOGFILE="$BACKUP_HOME/backups.log"
-CURRENT_LINK="$BACKUP_HOME/current"
+# CURRENT_LINK="$BACKUP_HOME/current"
 SNAPSHOT_DIR="$BACKUP_HOME/snapshots"
 ARCHIVES_DIR="$BACKUP_HOME/archives"
 DAILY_ARCHIVES_DIR="$ARCHIVES_DIR/daily"
@@ -38,7 +38,7 @@ MONTHLY_ARCHIVES_DIR="$ARCHIVES_DIR/monthly"
 start_time=`date +%s`
 
 # Init the folder structure
-mkdir -p $SNAPSHOT_DIR  $DAILY_ARCHIVES_DIR $WEEKLY_ARCHIVES_DIR $MONTHLY_ARCHIVES_DIR $CURRENT_LINK &> /dev/null
+mkdir -p $SNAPSHOT_DIR  $DAILY_ARCHIVES_DIR $WEEKLY_ARCHIVES_DIR $MONTHLY_ARCHIVES_DIR &> /dev/null
 touch $LOGFILE
 printf "[%12d] Backup started\n" $NOW >> $LOGFILE
 
@@ -46,24 +46,25 @@ printf "[%12d] Backup started\n" $NOW >> $LOGFILE
 # Step #1: Retreive files to create snapshots with RSYNC.
 ################################################################################
 
-rsync -azH --link-dest=$CURRENT_LINK  $BACKUP_SOURCE_DIR $SNAPSHOT_DIR/$NOW \
-  && ln -snf $(ls -1d $SNAPSHOT_DIR/* | tail -n1) $CURRENT_LINK \
-  && printf "\t- Copy from %s to %s successfull \n" $BACKUP_SOURCE_DIR $SNAPSHOT_DIR/$NOW >> $LOGFILE
+rsync -azH --no-links --exclude ".local" --exclude '.Screenshot' --exclude '.dropbox' --exclude '.config' --exclude '.wine' "$BACKUP_SOURCE_DIR" "$SNAPSHOT_DIR/$NOW" \
+  && printf "\t- Copy from %s to %s successfull \n" "$BACKUP_SOURCE_DIR" "$SNAPSHOT_DIR/$NOW" >> $LOGFILE
+  # && ln -snf $(ls -1d $SNAPSHOT_DIR/* | tail -n1) "$CURRENT_LINK" \
+  # && printf "\t- Copy from %s to %s successfull \n" "$BACKUP_SOURCE_DIR" "$SNAPSHOT_DIR/$NOW" >> $LOGFILE
 
 ################################################################################
 # Step #2: Group and Compress the previous snaphots per days
 ################################################################################
 
 # Go Through all the snapshots to find those eligible for backup
-find $SNAPSHOT_DIR -mindepth 1 -maxdepth 1 -type d -exec basename {} \; | \
+find "$SNAPSHOT_DIR" -mindepth 1 -maxdepth 1 -type d -exec basename {} \; | \
   while read fileName
   do
     snapshotGroup=${fileName:0:8}   # YYYYMMDD
     # Archive and delete only if the snapshots are older than yesterday
     if [[ $snapshotGroup -le $YESTERDAY ]]
-    then
-      tar -czf $DAILY_ARCHIVES_DIR/$snapshotGroup.tar.gz -C $SNAPSHOT_DIR $(cd $SNAPSHOT_DIR && ls -dl1 $snapshotGroup*) \
-        && rm -rf $SNAPSHOT_DIR/$snapshotGroup* \
+    then        # Previously used an ls scan. Messed up tar. Why'd they use long option?
+            tar -czf "$DAILY_ARCHIVES_DIR"/"$snapshotGroup.tar.gz" -C "$SNAPSHOT_DIR" $(cd "$SNAPSHOT_DIR" && find . -maxdepth 1 -name ${snapshotGroup}'*') \
+        && rm -rf "$SNAPSHOT_DIR/$snapshotGroup"* \
         && printf "\t- Created archive %s and removed the folders starting with %s\n" $DAILY_ARCHIVES_DIR/$snapshotGroup.tar.gz $SNAPSHOT_DIR/$snapshotGroup >> $LOGFILE
     fi
   done
@@ -73,10 +74,10 @@ find $SNAPSHOT_DIR -mindepth 1 -maxdepth 1 -type d -exec basename {} \; | \
 ################################################################################
 
 # Step 3.1: If there are archives not encrypted, encrypt them and delete the archive
-if [ $(ls -d $DAILY_ARCHIVES_DIR/*.tar.gz 2> /dev/null | wc -l) != "0" ]
+if [ $(ls -d "$DAILY_ARCHIVES_DIR"/*.tar.gz 2> /dev/null | wc -l) != "0" ]
 then
-  gpg -r $EMAIL --encrypt-files $DAILY_ARCHIVES_DIR/*.tar.gz \
-    && rm -rf $DAILY_ARCHIVES_DIR/*.tar.gz \
+  gpg -r $EMAIL --encrypt-files ${DAILY_ARCHIVES_DIR}/*.tar.gz \
+    && rm -rf ${DAILY_ARCHIVES_DIR}/*.tar.gz \
     && printf "\t- Encrypted archive in %s and removed the unencrypted version\n" $DAILY_ARCHIVES_DIR  
 fi
 
@@ -84,7 +85,7 @@ fi
 # Step #4: rotate the backups 
 ################################################################################
 
-find $DAILY_ARCHIVES_DIR -regextype posix-extended -type f -mindepth 1 -maxdepth 1 -regex '.*/[0-9]{8}\.tar\.gz\.gpg$' -exec basename {} \; | \
+find "$DAILY_ARCHIVES_DIR" -mindepth 1 -maxdepth 1 -regextype posix-extended -type f -regex '.*/[0-9]{8}\.tar\.gz\.gpg$' -exec basename {} \; | \
 while read encryptedArchive
 do
   archiveMonth=${encryptedArchive:0:6}
@@ -105,7 +106,7 @@ do
 done 
 
 # Step #4.3: Keep monthly backups for older backups
-find $WEEKLY_ARCHIVES_DIR -regextype posix-extended -mindepth 1 -maxdepth 1 -type f -regex '.*/[0-9]{6}\.WK_[1-4]\.tar\.gz\.gpg$' -exec basename {} \; | \
+find "$WEEKLY_ARCHIVES_DIR" -mindepth 1 -maxdepth 1 -regextype posix-extended -type f -regex '.*/[0-9]{6}\.WK_[1-4]\.tar\.gz\.gpg$' -exec basename {} \; | \
 while read encryptedArchive
 do
   archiveMonth=${encryptedArchive:0:6}
