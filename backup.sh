@@ -37,6 +37,11 @@ MONTHLY_ARCHIVES_DIR="$ARCHIVES_DIR/monthly"
 
 start_time=`date +%s`
 
+# Before we do anything, check that the destination exists
+if [[ ! -d "${BACKUP_HOME}" ]]; then
+  exit
+fi
+
 # Init the folder structure
 mkdir -p $SNAPSHOT_DIR  $DAILY_ARCHIVES_DIR $WEEKLY_ARCHIVES_DIR $MONTHLY_ARCHIVES_DIR &> /dev/null
 touch $LOGFILE
